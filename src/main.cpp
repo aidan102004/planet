@@ -59,29 +59,44 @@ int main()
 	Shader shaderProgram("Resources/default.vert", "Resources/default.frag");
 
 
-
+	//circle 1s vao, vbo, ebo
 	VAO VAO1;
 	VAO1.Bind();
 
 	VBO VBO1(vertices, sizeof(vertices));
 	EBO EBO1(indices, sizeof(indices));
+	//circle 2s vao, vbo, ebo
+	VAO VAO2;
+	VAO2.Bind();
+	VBO VBO2(vertices, sizeof(vertices));
+	EBO EBO2(indices, sizeof(indices));
+	VAO2.Unbind();
 
-	
+	//circle 1
+	VAO1.Bind();
 	VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 5 * sizeof(float), (void*)0);
     VAO1.LinkAttrib(VBO1, 1, 2, GL_FLOAT, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	VAO1.Unbind();
 	VBO1.Unbind();
 	EBO1.Unbind();
 
+	VAO2.Bind();
+	VAO2.LinkAttrib(VBO2, 0, 3, GL_FLOAT, 5 * sizeof(float), (void*)0);
+    VAO2.LinkAttrib(VBO2, 1, 2, GL_FLOAT, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	VAO2.Unbind();
+	VBO2.Unbind();
+	EBO2.Unbind();
+
 	//colors
 	glm::vec3 blue = glm::vec3((float)24/255,(float)107/255,(float)202/255);
-	glm::vec3 green = glm::vec3((float)72/255,(float)225/255,(float)25/255);
+	glm::vec3 grey = glm::vec3((float)224/255,(float)224/255,(float)224/255);
 
 
 	GLuint uniform = glGetUniformLocation(shaderProgram.ID, "color");
 	glm::vec3 lightur = glm::normalize(glm::vec3(1.0,1.0,1.0));
 	GLuint uniform1 = glGetUniformLocation(shaderProgram.ID, "uLightDir");
 	float angle = 0.0f;
+	float angle2 = 0.0f;
 	
 	GLuint rot_uniform = glGetUniformLocation(shaderProgram.ID, "rotateMatrix");
     glEnable(GL_BLEND);
@@ -104,11 +119,30 @@ int main()
 		cos(angle), 0, sin(angle),
 		0, 1, 0,
 		-sin(angle), 0, cos(angle));
-		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
+		//finish drawing first circle 
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), 1.0f);
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 1.0f);
 		glUniform3f(uniform, blue.x, blue.y, blue.z);
 		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
+		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
 		VAO1.Bind();
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		float offset = glm::radians(20.0f);
+		angle2 += deltaTime * 0.7f;
+		glm::mat3 rotMatrix2 = glm::mat3(
+		cos(angle2+ offset), 0, sin(angle2+ offset),
+		0, 1, 0,
+		-sin(angle2+ offset), 0, cos(angle2 + offset));
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), 1.2f);
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 0.3f);
+		glUniform3f(uniform, grey.x, grey.y, grey.z);
+		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
+		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix2));
+		VAO2.Bind();
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	
+
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
