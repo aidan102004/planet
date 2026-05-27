@@ -82,16 +82,29 @@ int main()
 	glm::vec3 lightur = glm::normalize(glm::vec3(1.0,1.0,1.0));
 	GLuint uniform1 = glGetUniformLocation(shaderProgram.ID, "uLightDir");
 	float angle = 0.0f;
-	glm::mat4 rotMatrix;
-
+	
+	GLuint rot_uniform = glGetUniformLocation(shaderProgram.ID, "rotateMatrix");
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+	
+	double lastTime = glfwGetTime();
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
 		shaderProgram.Activate();
+		double currTime = glfwGetTime();
+		float deltaTime = (float)(currTime - lastTime);
+		lastTime = currTime;
+		angle += deltaTime * 0.5f;
+		glm::mat3 rotMatrix = glm::mat3(
+		cos(angle), 0, sin(angle),
+		0, 1, 0,
+		-sin(angle), 0, cos(angle));
+		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
 		glUniform3f(uniform, blue.x, blue.y, blue.z);
 		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
 		VAO1.Bind();
