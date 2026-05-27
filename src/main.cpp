@@ -76,6 +76,8 @@ int main()
 	GLuint uniform = glGetUniformLocation(shaderProgram.ID, "color");
 	glm::vec3 lightur = glm::normalize(glm::vec3(1.0,1.0,1.0));
 	GLuint uniform1 = glGetUniformLocation(shaderProgram.ID, "uLightDir");
+	float angle = 0.0f;
+	glm::mat4 rotMatrix;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
