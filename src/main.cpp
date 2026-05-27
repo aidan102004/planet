@@ -73,6 +73,11 @@ int main()
 	VBO1.Unbind();
 	EBO1.Unbind();
 
+	//colors
+	glm::vec3 blue = glm::vec3((float)24/255,(float)107/255,(float)202/255);
+	glm::vec3 green = glm::vec3((float)72/255,(float)225/255,(float)25/255);
+
+
 	GLuint uniform = glGetUniformLocation(shaderProgram.ID, "color");
 	glm::vec3 lightur = glm::normalize(glm::vec3(1.0,1.0,1.0));
 	GLuint uniform1 = glGetUniformLocation(shaderProgram.ID, "uLightDir");
@@ -87,7 +92,7 @@ int main()
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		shaderProgram.Activate();
-		glUniform3f(uniform, 0.0f, 0.8f, 0.4f);
+		glUniform3f(uniform, blue.x, blue.y, blue.z);
 		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
 		VAO1.Bind();
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
