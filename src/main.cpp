@@ -16,7 +16,7 @@
 GLfloat vertices[] =
 {
     // pos                // uv
-    -0.5f, -0.5f, 0.0f,  -1.0f, -1.0f,
+    -0.5f, -0.5f, 0.0f,  -1.0f, -1.0f, 
     -0.5f,  0.5f, 0.0f,  -1.0f,  1.0f,
      0.5f,  0.5f, 0.0f,   1.0f,  1.0f,
      0.5f, -0.5f, 0.0f,   1.0f, -1.0f,
@@ -28,16 +28,20 @@ GLuint indices[] =
     0, 2, 3  // Lower triangle
 };
 
-int width, height = 800;
+const int width = 800, height = 800;
 
-float perlin(float x, float y);
-float dotGridGradient(int ix, int iy, float x, float y);
-glm::vec2 randomGradient(int ix, int iy);
+unsigned char pixels[width * height * 4];
+
+unsigned char cloudpixels[width * height * 4];
+
+int gridSize = 180;
+void createPerlin(unsigned char* pixels, int octaveCount, int seed);
+float perlin(float x, float y, int seed);
+glm::vec2 grad(int xPos, int yPos, int seed);
 float interpolate(float a0, float a1, float w);
-
+void createCloudPerlin(unsigned char* pixels, int octaveCount, int seed);
 int main()
 {
-
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -87,6 +91,32 @@ int main()
 	VBO2.Unbind();
 	EBO2.Unbind();
 
+	int seed = 0;
+	int cloudSeed = 0;
+	srand(time(NULL));
+	seed = rand();
+	cloudSeed = rand();
+	createPerlin(pixels, 6, seed);
+	GLuint textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+             GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	createCloudPerlin(cloudpixels, 2, cloudSeed);
+	GLuint cloudID;
+	glGenTextures(1, &cloudID);
+	glBindTexture(GL_TEXTURE_2D, cloudID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+             GL_RGBA, GL_UNSIGNED_BYTE, cloudpixels);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	//colors
 	glm::vec3 blue = glm::vec3((float)24/255,(float)107/255,(float)202/255);
 	glm::vec3 grey = glm::vec3((float)224/255,(float)224/255,(float)224/255);
@@ -99,18 +129,24 @@ int main()
 	float angle2 = 0.0f;
 	
 	GLuint rot_uniform = glGetUniformLocation(shaderProgram.ID, "rotateMatrix");
+	GLuint light_uniform = glGetUniformLocation(shaderProgram.ID, "lightMatrix");
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	
 	double lastTime = glfwGetTime();
-
+	float offset = glm::radians(50.0f);	
 	while (!glfwWindowShouldClose(window))
 	{
-		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+		glClearColor((float)6/255, (float)5/255, (float)33/255, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		shaderProgram.Activate();
+		GLint location = glGetUniformLocation(shaderProgram.ID, "uTexture");
+		glUniform1i(location, 0);
+
+		glActiveTexture(GL_TEXTURE0);              
+		glBindTexture(GL_TEXTURE_2D, textureID);   
 		double currTime = glfwGetTime();
 		float deltaTime = (float)(currTime - lastTime);
 		lastTime = currTime;
@@ -125,19 +161,23 @@ int main()
 		glUniform3f(uniform, blue.x, blue.y, blue.z);
 		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
 		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
+		glUniformMatrix3fv(light_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
 		VAO1.Bind();
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		float offset = glm::radians(20.0f);
-		angle2 += deltaTime * 0.7f;
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, cloudID);    
+		glUniform1i(location, 1);                 
+		angle2 += deltaTime * 0.4f;
 		glm::mat3 rotMatrix2 = glm::mat3(
-		cos(angle2+ offset), 0, sin(angle2+ offset),
+		cos(angle2 + offset), 0, sin(angle2 + offset),
 		0, 1, 0,
-		-sin(angle2+ offset), 0, cos(angle2 + offset));
+		-sin(angle2 + offset), 0, cos(angle2 + offset));
 		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), 1.2f);
-		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 0.3f);
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 0.5f);
 		glUniform3f(uniform, grey.x, grey.y, grey.z);
 		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
 		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix2));
+		glUniformMatrix3fv(light_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
 		VAO2.Bind();
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	
@@ -146,8 +186,6 @@ int main()
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-
-
 
 	VAO1.Delete();
 	VBO1.Delete();
@@ -158,56 +196,118 @@ int main()
 	return 0;
 }
 
-float perlin(float x, float y) {
+void createPerlin(unsigned char* pixels, int octaveCount, int seed) {
+
+	for (int x =0; x<width;x++) {
+		for (int y = 0; y<height; y++) {
+			int index = (y * width + x) * 4;
+
+			float pixelVal = 0;
+			float freq = 1;
+			float amp = 1;
+
+			for (int i = 0; i < octaveCount; i++) {
+				pixelVal += perlin(x * freq / gridSize, y * freq / gridSize, seed) * amp;
+				freq *= 2.0f;
+				amp  *= 0.5f;
+				//pixelVal *= 1.2;
+			}
+			if (pixelVal > 1.0) {
+				pixelVal = 1.0;
+			} else if (pixelVal < -1.0) {
+				pixelVal = -1.0;
+			}
+			if (pixelVal >= -1.0f && pixelVal <= 0.0f) {
+				pixels[index + 0] = 24;   
+				pixels[index + 1] = 107;  
+				pixels[index + 2] = 202;  
+				pixels[index + 3] = 255;  
+			} else {
+				pixels[index + 0] = 34;  
+				pixels[index + 1] = 139;  
+				pixels[index + 2] = 34;   
+				pixels[index + 3] = 255;  
+			}
+		}
+	}
+}
+
+void createCloudPerlin(unsigned char* pixels, int octaveCount, int seed) {
+
+	for (int x =0; x<width;x++) {
+		for (int y = 0; y<height; y++) {
+			int index = (y * width + x) * 4;
+
+			float pixelVal = 0;
+			float freq = 1;
+			float amp = 1;
+
+			for (int i = 0; i < octaveCount; i++) {
+				pixelVal += perlin(x * freq / 80, y * freq / 80, seed) * amp;
+				freq *= 2.0f;
+				amp  *= 0.5f;
+				//pixelVal *= 1.2;
+			}
+			if (pixelVal > 1.0) {
+				pixelVal = 1.0;
+			} else if (pixelVal < -1.0) {
+				pixelVal = -1.0;
+			}
+			if (pixelVal >= -1.0f && pixelVal <= 0.0f) {
+				pixels[index + 0] = 213;   
+				pixels[index + 1] = 213;  
+				pixels[index + 2] = 213;  
+				pixels[index + 3] = 213;  
+			} else {
+				pixels[index + 0] = 34;  
+				pixels[index + 1] = 139;  
+				pixels[index + 2] = 34;   
+				pixels[index + 3] = 0;  
+			}
+		}
+	}
+}
+
+float perlin(float x, float y, int seed) {
 	int x0 = (int)x;
 	int y0 = (int)y;
 	int x1 = x0 + 1;
 	int y1 = y0 + 1;
 
-	float sx = x - (float)x0;
-	float sy = y - (float)y0;
+	float fracx = x - (float)x0;
+	float fracy = y - (float)y0;
 
-	float n0 = dotGridGradient(x0, y0, x, y);
-	float n1 = dotGridGradient(x1, y0, x, y);
-	float ix0 = interpolate(n0, n1, sx);
-
-	n0 = dotGridGradient(x0, y1, x, y);
-	n1 = dotGridGradient(x1, y1, x, y);
-	float ix1 = interpolate(n0, n1, sx);
-
-	float value = interpolate(ix0, ix1, sy);
-
-	return value;
+	float c1 = glm::dot(glm::vec2(x - x0, y - y0), grad(x0, y0, seed));
+	float c2 = glm::dot(glm::vec2(x - x1, y - y0), grad(x1, y0, seed));
+	float c3 = glm::dot(glm::vec2(x - x0, y - y1), grad(x0, y1, seed));
+	float c4 = glm::dot(glm::vec2(x - x1, y - y1), grad(x1, y1, seed));
+	float ix0 = interpolate(c1, c2, fracx);
+	float ix1 = interpolate(c3, c4, fracx);
+	float val = interpolate(ix0, ix1, fracy);
+	return val;
 }
 
-float dotGridGradient(int ix, int iy, float x, float y) {
-	glm::vec2 gradient = randomGradient(ix, iy);
-
-	float dx = x - (float)ix;
-	float dy = y - (float)iy;
-	return (dx * gradient.x + dy * gradient.y);
-}
-
-glm::vec2 randomGradient(int ix, int iy) {
-	const unsigned w = 8 * sizeof(unsigned);
-	const unsigned s = w/2;
-	unsigned a = ix, b = iy;
-	a *= 3284157443;
-
-	b ^= a << s | a >> w - s;
-	b *= 1911520717;
-
-	a ^= b << s | b >> w - s;
-	a *= 2048419325;
-	float random = a * (3.14159265) / ~(~0u >> 1);
-
-	glm::vec2 v;
-	v.x = sin(random);
-	v.y = cos(random);
-	return v;
-
+glm::vec2 grad(int xPos, int yPos,int seed) {
+    const unsigned w = 8 * sizeof(unsigned);
+    const unsigned s = w / 2; 
+    unsigned a = xPos + seed, b = yPos + seed;
+    a *= 3284157443;
+ 
+    b ^= a << s | a >> w - s;
+    b *= 1911520717;
+ 
+    a ^= b << s | b >> w - s;
+    a *= 2048419325;
+    float random = a * (3.14159265 / ~(~0u >> 1)); // in [0, 2*Pi]
+    
+    glm::vec2 v;
+    v.x = sin(random);
+    v.y = cos(random);
+ 
+    return v;
 }
 
 float interpolate(float a0, float a1, float w) {
 	return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
 }
+
