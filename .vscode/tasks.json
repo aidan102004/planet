@@ -18,10 +18,15 @@
                 "${workspaceFolder}/src/ebo.cpp",
                 "${workspaceFolder}/src/stb.cpp",
                 "${workspaceFolder}/src/texture.cpp",
+                "${workspaceFolder}/src/perlin.cpp",
                 "-lglfw3dll",
                 "-o",
                 "${workspaceFolder}/cutable.exe"
             ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"    
+            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },

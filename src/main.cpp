@@ -11,6 +11,7 @@
 #include"vao.h"
 #include"vbo.h"
 #include"ebo.h"
+#include"perlin.h"
 
 
 GLfloat vertices[] =
@@ -35,11 +36,7 @@ unsigned char pixels[width * height * 4];
 unsigned char cloudpixels[width * height * 4];
 
 int gridSize = 180;
-void createPerlin(unsigned char* pixels, int octaveCount, int seed);
-float perlin(float x, float y, int seed);
-glm::vec2 grad(int xPos, int yPos, int seed);
-float interpolate(float a0, float a1, float w);
-void createCloudPerlin(unsigned char* pixels, int octaveCount, int seed);
+void drawCircle(VAO& vao, Shader& shaderProgram, GLuint ldUniform, glm::vec3 ldr, GLuint rot, GLuint lrot, GLuint tex, int texLoc, GLenum texSlot, glm::mat3 rotMtx, glm::mat3 lightRot, float scale, float alpha);
 int main()
 {
 	glfwInit();
@@ -96,10 +93,13 @@ int main()
 	srand(time(NULL));
 	seed = rand();
 	cloudSeed = rand();
-	createPerlin(pixels, 6, seed);
-	GLuint textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
+
+
+	Perlin perlin(pixels, 6, seed, gridSize, {width, height}, {glm::vec4(24, 107, 202, 255), glm::vec4(34, 139, 34, 255)});
+	
+	GLuint perlinTex;
+	glGenTextures(1, &perlinTex);
+	glBindTexture(GL_TEXTURE_2D, perlinTex);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
              GL_RGBA, GL_UNSIGNED_BYTE, pixels);
@@ -107,24 +107,19 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	createCloudPerlin(cloudpixels, 2, cloudSeed);
-	GLuint cloudID;
-	glGenTextures(1, &cloudID);
-	glBindTexture(GL_TEXTURE_2D, cloudID);
+	Perlin cloudPerlin(cloudpixels, 2, cloudSeed, 80, {width, height}, {glm::vec4(213, 213, 213, 213), glm::vec4(34, 139, 34, 0)});
+	GLuint cloudTex;
+	glGenTextures(1, &cloudTex);
+	glBindTexture(GL_TEXTURE_2D, cloudTex);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
              GL_RGBA, GL_UNSIGNED_BYTE, cloudpixels);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//colors
-	glm::vec3 blue = glm::vec3((float)24/255,(float)107/255,(float)202/255);
-	glm::vec3 grey = glm::vec3((float)224/255,(float)224/255,(float)224/255);
 
-
-	GLuint uniform = glGetUniformLocation(shaderProgram.ID, "color");
 	glm::vec3 lightur = glm::normalize(glm::vec3(1.0,1.0,1.0));
-	GLuint uniform1 = glGetUniformLocation(shaderProgram.ID, "uLightDir");
+	GLuint ldUniform = glGetUniformLocation(shaderProgram.ID, "uLightDir");
 	float angle = 0.0f;
 	float angle2 = 0.0f;
 	
@@ -142,46 +137,26 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		shaderProgram.Activate();
-		GLint location = glGetUniformLocation(shaderProgram.ID, "uTexture");
-		glUniform1i(location, 0);
-
-		glActiveTexture(GL_TEXTURE0);              
-		glBindTexture(GL_TEXTURE_2D, textureID);   
+		
 		double currTime = glfwGetTime();
 		float deltaTime = (float)(currTime - lastTime);
 		lastTime = currTime;
 		angle += deltaTime * 0.5f;
-		glm::mat3 rotMatrix = glm::mat3(
-		cos(angle), 0, sin(angle),
-		0, 1, 0,
-		-sin(angle), 0, cos(angle));
-		//finish drawing first circle 
-		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), 1.0f);
-		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 1.0f);
-		glUniform3f(uniform, blue.x, blue.y, blue.z);
-		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
-		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
-		glUniformMatrix3fv(light_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
-		VAO1.Bind();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, cloudID);    
-		glUniform1i(location, 1);                 
-		angle2 += deltaTime * 0.4f;
-		glm::mat3 rotMatrix2 = glm::mat3(
-		cos(angle2 + offset), 0, sin(angle2 + offset),
-		0, 1, 0,
-		-sin(angle2 + offset), 0, cos(angle2 + offset));
-		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), 1.2f);
-		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), 0.5f);
-		glUniform3f(uniform, grey.x, grey.y, grey.z);
-		glUniform3f(uniform1, lightur.x, lightur.y, lightur.z);
-		glUniformMatrix3fv(rot_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix2));
-		glUniformMatrix3fv(light_uniform, 1, GL_FALSE, glm::value_ptr(rotMatrix));
-		VAO2.Bind();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	
+		angle2 += deltaTime * 0.8f; // cloud rotates faster
 
+		glm::mat3 rotMatrix = glm::mat3(
+			cos(angle), 0, sin(angle),
+			0, 1, 0,
+			-sin(angle), 0, cos(angle));
+
+		glm::mat3 rotMatrix2 = glm::mat3(
+			cos(angle2 + offset), 0, sin(angle2 + offset),
+			0, 1, 0,
+			-sin(angle2 + offset), 0, cos(angle2 + offset));
+		drawCircle(VAO1, shaderProgram, ldUniform, lightur, rot_uniform, light_uniform, perlinTex, 0, GL_TEXTURE0, rotMatrix, rotMatrix, 1.0f, 1.0f);
+
+
+		drawCircle(VAO2, shaderProgram, ldUniform, lightur, rot_uniform, light_uniform, cloudTex, 1, GL_TEXTURE1, rotMatrix2, rotMatrix, 1.2f, 0.5f);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -196,118 +171,16 @@ int main()
 	return 0;
 }
 
-void createPerlin(unsigned char* pixels, int octaveCount, int seed) {
-
-	for (int x =0; x<width;x++) {
-		for (int y = 0; y<height; y++) {
-			int index = (y * width + x) * 4;
-
-			float pixelVal = 0;
-			float freq = 1;
-			float amp = 1;
-
-			for (int i = 0; i < octaveCount; i++) {
-				pixelVal += perlin(x * freq / gridSize, y * freq / gridSize, seed) * amp;
-				freq *= 2.0f;
-				amp  *= 0.5f;
-				//pixelVal *= 1.2;
-			}
-			if (pixelVal > 1.0) {
-				pixelVal = 1.0;
-			} else if (pixelVal < -1.0) {
-				pixelVal = -1.0;
-			}
-			if (pixelVal >= -1.0f && pixelVal <= 0.0f) {
-				pixels[index + 0] = 24;   
-				pixels[index + 1] = 107;  
-				pixels[index + 2] = 202;  
-				pixels[index + 3] = 255;  
-			} else {
-				pixels[index + 0] = 34;  
-				pixels[index + 1] = 139;  
-				pixels[index + 2] = 34;   
-				pixels[index + 3] = 255;  
-			}
-		}
-	}
+void drawCircle(VAO& vao, Shader& shaderProgram, GLuint ldUniform, glm::vec3 ldr, GLuint rot, GLuint lrot, GLuint tex, int texLoc, GLenum texSlot, glm::mat3 rotMtx, glm::mat3 lightRot, float scale, float alpha) {
+		GLint location = glGetUniformLocation(shaderProgram.ID, "uTexture");
+		glUniform1i(location, texLoc);
+		glActiveTexture(texSlot);              
+		glBindTexture(GL_TEXTURE_2D, tex);  
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "scalar"), scale);
+		glUniform1f(glGetUniformLocation(shaderProgram.ID, "alpha"), alpha);
+		glUniform3f(ldUniform, ldr.x, ldr.y, ldr.z);
+		glUniformMatrix3fv(rot, 1, GL_FALSE, glm::value_ptr(rotMtx));
+		glUniformMatrix3fv(lrot, 1, GL_FALSE, glm::value_ptr(lightRot));
+		vao.Bind();
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);	
 }
-
-void createCloudPerlin(unsigned char* pixels, int octaveCount, int seed) {
-
-	for (int x =0; x<width;x++) {
-		for (int y = 0; y<height; y++) {
-			int index = (y * width + x) * 4;
-
-			float pixelVal = 0;
-			float freq = 1;
-			float amp = 1;
-
-			for (int i = 0; i < octaveCount; i++) {
-				pixelVal += perlin(x * freq / 80, y * freq / 80, seed) * amp;
-				freq *= 2.0f;
-				amp  *= 0.5f;
-				//pixelVal *= 1.2;
-			}
-			if (pixelVal > 1.0) {
-				pixelVal = 1.0;
-			} else if (pixelVal < -1.0) {
-				pixelVal = -1.0;
-			}
-			if (pixelVal >= -1.0f && pixelVal <= 0.0f) {
-				pixels[index + 0] = 213;   
-				pixels[index + 1] = 213;  
-				pixels[index + 2] = 213;  
-				pixels[index + 3] = 213;  
-			} else {
-				pixels[index + 0] = 34;  
-				pixels[index + 1] = 139;  
-				pixels[index + 2] = 34;   
-				pixels[index + 3] = 0;  
-			}
-		}
-	}
-}
-
-float perlin(float x, float y, int seed) {
-	int x0 = (int)x;
-	int y0 = (int)y;
-	int x1 = x0 + 1;
-	int y1 = y0 + 1;
-
-	float fracx = x - (float)x0;
-	float fracy = y - (float)y0;
-
-	float c1 = glm::dot(glm::vec2(x - x0, y - y0), grad(x0, y0, seed));
-	float c2 = glm::dot(glm::vec2(x - x1, y - y0), grad(x1, y0, seed));
-	float c3 = glm::dot(glm::vec2(x - x0, y - y1), grad(x0, y1, seed));
-	float c4 = glm::dot(glm::vec2(x - x1, y - y1), grad(x1, y1, seed));
-	float ix0 = interpolate(c1, c2, fracx);
-	float ix1 = interpolate(c3, c4, fracx);
-	float val = interpolate(ix0, ix1, fracy);
-	return val;
-}
-
-glm::vec2 grad(int xPos, int yPos,int seed) {
-    const unsigned w = 8 * sizeof(unsigned);
-    const unsigned s = w / 2; 
-    unsigned a = xPos + seed, b = yPos + seed;
-    a *= 3284157443;
- 
-    b ^= a << s | a >> w - s;
-    b *= 1911520717;
- 
-    a ^= b << s | b >> w - s;
-    a *= 2048419325;
-    float random = a * (3.14159265 / ~(~0u >> 1)); // in [0, 2*Pi]
-    
-    glm::vec2 v;
-    v.x = sin(random);
-    v.y = cos(random);
- 
-    return v;
-}
-
-float interpolate(float a0, float a1, float w) {
-	return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;
-}
-
