@@ -1,13 +1,16 @@
 #include"perlin.h"
+#include"pallette.h"
 
-Perlin::Perlin(unsigned char* pixels, int octaveCount, int seed, int gridSize, std::pair<int, int> dim, std::pair<glm::vec4, glm::vec4> colors) {
+Perlin::Perlin(unsigned char* pixels, int octaveCount, int seed, int gridSize, std::pair<int, int> dim, Pallete pallete) {
     this->octaveCount = octaveCount;
     this->seed = seed;
     this->gridSize = gridSize;
     this->w = dim.first;
     this->h = dim.second;
-    this->col1 = colors.first;
-    this->col2 = colors.second;
+    this->col1 = pallete.col1;
+    this->col2 = pallete.col2;
+    this->col3 = pallete.col3;
+    this->col4 = pallete.col4;
     createPerlin(pixels);
 }
 
@@ -32,17 +35,27 @@ void Perlin::createPerlin(unsigned char* pixels)
 				pixelVal = -1.0;
 			}
 			if (pixelVal >= -1.0f && pixelVal <= 0.0f) {
-				pixels[index + 0] = (unsigned char)col1.r;
-				pixels[index + 1] = (unsigned char)col1.g;
-				pixels[index + 2] = (unsigned char)col1.b;
-				pixels[index + 3] = (unsigned char)col1.a;
-			} else {
-				pixels[index + 0] = (unsigned char)col2.r;
-				pixels[index + 1] = (unsigned char)col2.g;  
-				pixels[index + 2] = (unsigned char)col2.b;   
-				pixels[index + 3] = (unsigned char)col2.a;  
-			}
-		}
+                pixels[index + 0] = (unsigned char)col1.r;
+                pixels[index + 1] = (unsigned char)col1.g;
+                pixels[index + 2] = (unsigned char)col1.b;
+                pixels[index + 3] = (unsigned char)col1.a;
+            } else if (pixelVal > 0.0f && pixelVal <= 0.1f) {
+                pixels[index + 0] = (unsigned char)col2.r;
+                pixels[index + 1] = (unsigned char)col2.g;
+                pixels[index + 2] = (unsigned char)col2.b;
+                pixels[index + 3] = (unsigned char)col2.a;
+            } else if (pixelVal > 0.1f && pixelVal <= 0.14f) {
+                pixels[index + 0] = (unsigned char)col3.r;
+                pixels[index + 1] = (unsigned char)col3.g;
+                pixels[index + 2] = (unsigned char)col3.b;
+                pixels[index + 3] = (unsigned char)col3.a;
+            } else {
+                pixels[index + 0] = (unsigned char)col4.r;
+                pixels[index + 1] = (unsigned char)col4.g;  
+                pixels[index + 2] = (unsigned char)col4.b;   
+                pixels[index + 3] = (unsigned char)col4.a;  
+            }
+                    }
 	}
 }
 

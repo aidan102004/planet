@@ -12,6 +12,7 @@
 #include"vbo.h"
 #include"ebo.h"
 #include"perlin.h"
+#include"pallette.h"
 
 
 GLfloat vertices[] =
@@ -44,7 +45,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window = glfwCreateWindow(800, 800, "Planet", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Planet", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -55,7 +56,7 @@ int main()
 
 	gladLoadGL();
 
-	glViewport(0, 0, 800, 800);
+	glViewport(0, 0, width, height);
 
 	Shader shaderProgram("Resources/default.vert", "Resources/default.frag");
 
@@ -88,14 +89,13 @@ int main()
 	VBO2.Unbind();
 	EBO2.Unbind();
 
-	int seed = 0;
-	int cloudSeed = 0;
+	int seed = 0, cloudSeed = 0;
 	srand(time(NULL));
 	seed = rand();
 	cloudSeed = rand();
 
-
-	Perlin perlin(pixels, 6, seed, gridSize, {width, height}, {glm::vec4(24, 107, 202, 255), glm::vec4(34, 139, 34, 255)});
+	Pallete earthPallete = {glm::vec4(15, 70, 160, 255), glm::vec4(24, 107, 202, 255), glm::vec4(194, 178, 128, 255), glm::vec4(44, 112, 49, 255) };
+	Perlin perlin(pixels, 6, seed, gridSize, {width, height}, earthPallete);
 	
 	GLuint perlinTex;
 	glGenTextures(1, &perlinTex);
@@ -107,7 +107,8 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	Perlin cloudPerlin(cloudpixels, 2, cloudSeed, 80, {width, height}, {glm::vec4(213, 213, 213, 213), glm::vec4(34, 139, 34, 0)});
+	Pallete cloudPallete = {glm::vec4(237, 237, 237, 237),glm::vec4(34, 139, 34, 0), glm::vec4(34, 139, 34, 0), glm::vec4(34, 139, 34, 0)};
+	Perlin cloudPerlin(cloudpixels, 4, cloudSeed, 80, {width, height}, cloudPallete);
 	GLuint cloudTex;
 	glGenTextures(1, &cloudTex);
 	glBindTexture(GL_TEXTURE_2D, cloudTex);
@@ -131,6 +132,8 @@ int main()
 	
 	double lastTime = glfwGetTime();
 	float offset = glm::radians(50.0f);	
+
+	
 	while (!glfwWindowShouldClose(window))
 	{
 		glClearColor((float)6/255, (float)5/255, (float)33/255, 1.0f);
@@ -141,8 +144,8 @@ int main()
 		double currTime = glfwGetTime();
 		float deltaTime = (float)(currTime - lastTime);
 		lastTime = currTime;
-		angle += deltaTime * 0.5f;
-		angle2 += deltaTime * 0.8f; // cloud rotates faster
+		angle += deltaTime * 0.2f;
+		angle2 += deltaTime * 0.3f; // cloud rotates faster
 
 		glm::mat3 rotMatrix = glm::mat3(
 			cos(angle), 0, sin(angle),
@@ -156,7 +159,7 @@ int main()
 		drawCircle(VAO1, shaderProgram, ldUniform, lightur, rot_uniform, light_uniform, perlinTex, 0, GL_TEXTURE0, rotMatrix, rotMatrix, 1.0f, 1.0f);
 
 
-		drawCircle(VAO2, shaderProgram, ldUniform, lightur, rot_uniform, light_uniform, cloudTex, 1, GL_TEXTURE1, rotMatrix2, rotMatrix, 1.2f, 0.5f);
+		drawCircle(VAO2, shaderProgram, ldUniform, lightur, rot_uniform, light_uniform, cloudTex, 1, GL_TEXTURE1, rotMatrix2, rotMatrix, 1.2f, 0.8f);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

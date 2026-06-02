@@ -30,7 +30,7 @@ void main()
 
     vec4 texColor = texture(uTexture, sphereUV); //looks up the pixel from the texture at this given coord
 
-    float light = max(0.1, dot(normal, uLightDir * lightMatrix)); //rotate the light normals with the lightMatrix
+    float light = max(0.05, dot(normal, uLightDir * lightMatrix)); //rotate the light normals with the lightMatrix
     vec3 c = texColor.rgb * light; //sets the color
     c = mix(c, texColor.rgb, max(0.0, light - 0.5)); // brighten lit areas using texture color not white, linearly interpolates between c and texColor.rgb by the light value
     FragColor = vec4(c, circle * texColor.a * alpha); 
