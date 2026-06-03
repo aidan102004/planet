@@ -8,6 +8,8 @@ uniform mat3 lightMatrix;
 uniform float alpha;
 uniform sampler2D uTexture;
 
+//perlin
+
 void main()
 {
     float d = 1.0 - length(uv); //sets d to the distance from the center flipped so anything less than 0.0 is outside
