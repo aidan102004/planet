@@ -9,6 +9,7 @@ struct Pallete {
 	glm::vec4 col2;
 	glm::vec4 col3;
 	glm::vec4 col4;
+	glm::vec4 thresholds;
 };
 
 #endif
